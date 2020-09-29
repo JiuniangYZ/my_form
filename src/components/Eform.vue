@@ -1,4 +1,5 @@
 <script>
+import { Compiler } from "../compiler/myCompiler";
 let mousetrap = require("mousetrap");
 const SELECT_NONE = 0;
 const SELECT_BY_ROW = 1;
@@ -29,8 +30,7 @@ export default {
     return {
       commandStatus: {
         mode: NORMAL_MODE,
-        command: "", //简单指令
-        script: "", //复杂计算
+        command: "",
       },
       editStatus: {
         editting: false,
@@ -214,8 +214,7 @@ export default {
       _.type = SELECT_BY_COL;
       _.selectedCol = colIndex;
     },
-    handleCellClick(cell, rowIndex, colIndex, e) {
-      // console.log("handle_cell_click=>", e);
+    handleCellClick(cell, rowIndex, colIndex) {
       let { type, selectedCol, selectedRow } = this.selectStatus;
       if (
         type == SELECT_SINGLE_CELL &&
@@ -339,7 +338,7 @@ export default {
     },
     pasteRow(rowIndex) {
       console.log("paste!");
-      let { cutBoard, selectStatus } = this;
+      let { cutBoard } = this;
       if (cutBoard.type != ROW) return; //剪贴板里空的
       this.theData.splice(rowIndex + 1, 0, this.deepCpy(cutBoard.val));
       this.maxRow += 1;
@@ -359,13 +358,28 @@ export default {
     revoke() {
       console.log("revoke!!");
     },
-    back2NormalMode() {
+    handleEsc() {
+      //类似vim中的esc逻辑
       let _ = this.commandStatus;
       _.mode = NORMAL_MODE;
+      _.command = "";
     },
     go2EditMode() {
       let _ = this.commandStatus;
       _.mode = EDIT_MODE;
+    },
+    goCommandMode() {
+      let _ = this.commandStatus;
+      _.mode = COMMAND_MODE;
+      this.$nextTick(() => {
+        let el = this.$refs.script_input.$el;
+        this.$refs.script_input.$el.focus();
+        mousetrap(el).bind("esc", () => {
+          console.log("esc__here__");
+          this.handleEsc();
+          _.command = "";
+        });
+      });
     },
     bindGlobalKeys() {
       mousetrap.bind("d d", () => {
@@ -382,6 +396,7 @@ export default {
       });
       mousetrap.bind("esc", () => {
         console.log("cancel");
+        this.handleEsc();
       });
       mousetrap.bind("right", () => {
         console.log("=>");
@@ -399,13 +414,31 @@ export default {
         console.log("down");
         this.handleDown();
       });
+      mousetrap.bind(":", () => {
+        this.goCommandMode();
+      });
     },
     bottomRender() {
       //命令输入区
       let { commandStatus: _ } = this;
+      if (_.mode != COMMAND_MODE) return "";
       return (
         <a-row>
-          <span>{_.command}</span>
+          <a-input
+            ref="script_input"
+            v-model={_.command}
+            on-blur={() => {
+              this.handleEsc();
+            }}
+            on-pressEnter={() => {
+              let code = _.command.substr(1);
+              console.log(_.command);
+              let ast = Compiler.parse(this.theData, code);
+              let { right } = ast;
+              console.log(right);
+              console.log(Compiler.getExpVal(right));
+            }}
+          />
         </a-row>
       );
     },
