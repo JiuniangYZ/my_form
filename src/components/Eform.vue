@@ -21,7 +21,7 @@ const RM_COL = 3;
 const RERANGE_ROW = 4; //包括sort
 const REPLACE_ROW = 5;
 const REPLACE_COL = 6;
-const CELL_EDIT = 5;
+const CELL_EDIT = 7;
 //剪贴板类型
 const NONE = 0;
 const ROW = 1;
@@ -490,6 +490,7 @@ export default {
       if (last.type == RERANGE_ROW) return (this.theData = last.old);
       throw new Error(`unknown edit type => ${last.type}`);
     },
+
     bindGlobalKeys() {
       mousetrap.bind("d d", () => {
         this.removeRow(this.selectStatus.selectedRow);
@@ -553,7 +554,7 @@ export default {
   render() {
     return (
       <div class="e_form_wrapper">
-        {this.headerRender()}
+        {/*this.headerRender()*/}
         {this.tableRender()}
         {this.bottomRender()}
       </div>

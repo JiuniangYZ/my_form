@@ -48,7 +48,7 @@ class myCompiler {
     let { rowIndex, colIndex } = node;
     return {
       _type: "number",
-      val: Number(this.ctx[rowIndex][colIndex].val)
+      val: Number(this.ctx[rowIndex][colIndex].val) || 0
     }; //just ret value
   }
   getColVal(node) {
