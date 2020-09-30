@@ -86,7 +86,7 @@ export default {
                 <a-popover class="col_action">
                   <a-icon type="caret-down" />
                   <template slot="content">
-                    <a-row>
+                    <a-row class="mb10">
                       <a-button
                         on-click={() => {
                           this.addColumnAfter(index);
@@ -95,8 +95,9 @@ export default {
                         增加一列
                       </a-button>
                     </a-row>
-                    <a-row>
+                    <a-row class="mb10">
                       <a-button
+                        disabled={this.maxCol == 1}
                         on-click={() => {
                           this.removeColumn(index);
                         }}
@@ -270,6 +271,7 @@ export default {
     },
     removeColumn(colIndex, isRevoke) {
       // console.log(colIndex);
+      if (this.maxCol == 1) return;
       let { selectStatus } = this;
       let removed = this.theData.map((row) => {
         return row.splice(colIndex, 1)[0];
@@ -622,5 +624,8 @@ export default {
 }
 .mr10 {
   margin-right: 10px;
+}
+.mb10 {
+  margin-bottom: 10px;
 }
 </style>
