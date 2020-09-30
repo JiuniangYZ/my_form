@@ -100,10 +100,10 @@ var index = (function () {
           this.$ = yy.helper.rowBuilder($$[$0])
           break;
         case 8:
-          this.$ = yy.helper.colBuilder($$[$01])
+          this.$ = yy.helper.colBuilder($$[$0])
           break;
         case 9:
-          this.$ = yy.helper.cellBuilder($$[$02])
+          this.$ = yy.helper.cellBuilder($$[$0])
           break;
         case 10: case 11: case 12: case 13:
           this.$ = yy.helper.evalBuilder($$[$0 - 2], $$[$0 - 1], $$[$0])

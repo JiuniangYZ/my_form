@@ -1,6 +1,8 @@
 import Vue from "vue";
 import App from "./App.vue";
-import { Button, Row, Col, Input, Popover, Icon } from "ant-design-vue";
+import { Button, Row, Col, Input, Popover, Icon, notification } from "ant-design-vue";
+Vue.use(notification);
+Vue.prototype.$notify = notification;
 Vue.use(Button);
 Vue.use(Row);
 Vue.use(Col);

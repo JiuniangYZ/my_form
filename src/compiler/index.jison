@@ -39,8 +39,8 @@ exp
 
 position_ref
   : ROW {$$ = yy.helper.rowBuilder($1)}
-  | COL {$$ = yy.helper.colBuilder($2)}
-  | CELL {$$ = yy.helper.cellBuilder($3)}
+  | COL {$$ = yy.helper.colBuilder($1)}
+  | CELL {$$ = yy.helper.cellBuilder($1)}
   ;
 
 eval

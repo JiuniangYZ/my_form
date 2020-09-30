@@ -19,6 +19,8 @@ const INSERT_COL = 1;
 const RM_ROW = 2;
 const RM_COL = 3;
 const RERANGE_ROW = 4; //包括sort
+const REPLACE_ROW = 5;
+const REPLACE_COL = 6;
 const CELL_EDIT = 5;
 //剪贴板类型
 const NONE = 0;
@@ -58,7 +60,14 @@ export default {
   },
   methods: {
     headerRender() {
-      return <a-row class={{ the_header: true }}>I am header</a-row>;
+      return (
+        <a-row class={{ the_header: true }}>
+          <a-button type="primary" class="mr10">
+            csv导入
+          </a-button>
+          <a-button type="primary">csv导出</a-button>
+        </a-row>
+      );
     },
     firstRowRender() {
       let { maxCol } = this;
@@ -259,17 +268,18 @@ export default {
         colIndex: colIndex + 1, //新列的位置
       });
     },
-    removeColumn(colIndex) {
+    removeColumn(colIndex, isRevoke) {
       // console.log(colIndex);
       let { selectStatus } = this;
       let removed = this.theData.map((row) => {
         return row.splice(colIndex, 1)[0];
       });
-      this.editStack.push({
-        type: RM_COL,
-        removed,
-        index: colIndex,
-      });
+      if (!isRevoke)
+        this.editStack.push({
+          type: RM_COL,
+          removed,
+          index: colIndex,
+        });
       this.maxCol -= 1;
       if (selectStatus.selectedCol == this.maxCol)
         selectStatus.selectedCol -= 1;
@@ -312,21 +322,24 @@ export default {
       if (_.selectedRow == this.maxRow - 1) return;
       _.selectedRow += 1;
     },
-    removeRow(rowIndex) {
+    removeRow(rowIndex, isRevoke = false) {
       console.log("dd!");
       if (this.maxRow == 1) return; //不能删除最后一行
-      let removed = this.theData.splice(rowIndex, 1);
+      let removed = this.theData.splice(rowIndex, 1)[0];
       let { cutBoard, selectStatus } = this;
-      this.editStack.push({
-        type: RM_ROW,
-        rowIndex: rowIndex,
-        val: removed[0],
-      });
+      if (!isRevoke) {
+        this.editStack.push({
+          type: RM_ROW,
+          rowIndex: rowIndex,
+          removed,
+          // val: removed[0],
+        });
+        cutBoard.type = ROW;
+        cutBoard.val = removed;
+      }
       this.maxRow -= 1;
       if (selectStatus.selectedRow == this.maxRow)
         selectStatus.selectedRow -= 1;
-      cutBoard.type = ROW;
-      cutBoard.val = removed[0];
     },
     copyRow(rowIndex) {
       console.log("yy!");
@@ -355,8 +368,76 @@ export default {
         });
       return { val: data.val };
     },
-    revoke() {
-      console.log("revoke!!");
+    runScript(code) {
+      try {
+        let ast = Compiler.parse(this.theData, code);
+        let { right, left } = ast;
+        let res = Compiler.getExpVal(right);
+        this.handleAssign(left, res);
+        this.commandStatus.mode = NORMAL_MODE;
+        this.commandStatus.command = "";
+      } catch (e) {
+        this.$notify.error({
+          message: "编译错误",
+          description: e.message,
+        });
+      }
+    },
+    handleAssign(ref, exp) {
+      console.log(ref);
+      console.log(exp);
+      let { type: lType } = ref;
+      let { _type: rType, val } = exp;
+      if (rType !== "number" && lType !== rType)
+        throw new Error(`irlegal assignment ${lType} => ${rType}`);
+      if (lType === "cell")
+        return this.assignCell(ref.rowIndex, ref.colIndex, val);
+      if (lType === "row") return this.assignRow(ref.index, val);
+      if (lType === "col") return this.assignCol(ref.index, val);
+    },
+    assignRow(rowIndex, neoRow, isRevoke = false) {
+      let removed = this.theData.splice(
+        rowIndex,
+        1,
+        Array.isArray(neoRow)
+          ? neoRow.map((i) => {
+              return { val: i };
+            })
+          : this.theData[0].map(() => {
+              return { val: neoRow };
+            })
+      )[0];
+      if (!isRevoke)
+        this.editStack.push({
+          type: REPLACE_ROW,
+          removed,
+          rowIndex,
+        });
+    },
+    assignCol(colIndex, neoCol) {
+      let removed = Array.isArray(neoCol)
+        ? this.theData.map((row, index) => {
+            return row.splice(colIndex, 1, { val: neoCol[index] })[0];
+          })
+        : this.theData.map((row) => {
+            return row.splice(colIndex, 1, { val: neoCol })[0];
+          });
+      this.editStack.push({
+        type: REPLACE_COL,
+        removed,
+        colIndex,
+      });
+    },
+    assignCell(rowIndex, colIndex, neoValue, isRevoke = false) {
+      let cell = this.theData[rowIndex][colIndex];
+      let oldVal = cell.val;
+      cell.val = neoValue;
+      if (!isRevoke)
+        this.editStack.push({
+          type: CELL_EDIT,
+          cell,
+          oldVal,
+        });
     },
     handleEsc() {
       //类似vim中的esc逻辑
@@ -380,6 +461,34 @@ export default {
           _.command = "";
         });
       });
+    },
+    revoke() {
+      let { editStack, theData } = this;
+      if (editStack.length == 0)
+        return this.$notify.error({ message: "already oldest" });
+      let last = editStack.pop();
+      if (last.type == INSERT_ROW) return this.removeRow(last.rowIndex, true);
+      if (last.type == INSERT_ROW)
+        return this.removeColumn(last.colIndex, true);
+      if (last.type == CELL_EDIT) return (last.cell.val = last.oldVal);
+      if (last.type == RM_ROW) {
+        this.maxRow += 1;
+        return theData.splice(last.rowIndex, 0, last.removed);
+      }
+      if (last.type == RM_COL) {
+        this.maxCol += 1;
+        return theData.forEach((row, index) => {
+          row.splice(last.colIndex, 0, last.removed[index]);
+        });
+      }
+      if (last.type == REPLACE_ROW)
+        return theData.splice(last.rowIndex, 1, last.removed);
+      if (last.type == REPLACE_COL)
+        return theData.forEach((row, index) => {
+          row.splice(last.colIndex, 1, last.removed[index]);
+        });
+      if (last.type == RERANGE_ROW) return (this.theData = last.old);
+      throw new Error(`unknown edit type => ${last.type}`);
     },
     bindGlobalKeys() {
       mousetrap.bind("d d", () => {
@@ -431,12 +540,7 @@ export default {
               this.handleEsc();
             }}
             on-pressEnter={() => {
-              let code = _.command.substr(1);
-              console.log(_.command);
-              let ast = Compiler.parse(this.theData, code);
-              let { right } = ast;
-              console.log(right);
-              console.log(Compiler.getExpVal(right));
+              this.runScript(_.command.substr(1));
             }}
           />
         </a-row>
@@ -479,8 +583,9 @@ export default {
   }
   .the_header {
     width: 100%;
-    border: 1px grey solid;
+    // border: 1px grey solid;
     margin-bottom: 5px;
+    text-align: left;
   }
   width: 100%;
   height: 100px;
@@ -513,5 +618,8 @@ export default {
       background: #888888;
     }
   }
+}
+.mr10 {
+  margin-right: 10px;
 }
 </style>

@@ -37,10 +37,14 @@ class compileHelper {
   }
   cellBuilder(text) {
     let res = /^#([a-z])([1-9][0-9]*)$/.exec(text);
+    let rowIndex = Number(res[2]) - 1;
+    let colIndex = res[1].charCodeAt(0) - 97;
+    if (colIndex >= this.colNum) throw new Error("col out of range");
+    if (rowIndex >= this.rowNum) throw new Error("row out of range");
     return {
       type: "cell",
-      rowIndex: Number(res[2]),
-      colIndex: res[1].charCodeAt(0) - 97,
+      rowIndex,
+      colIndex
     };
   }
 }
